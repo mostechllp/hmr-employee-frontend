@@ -17,10 +17,10 @@
     --yellow: #f1c40f;
     --yellow-light: #fff9e6;
 
-    --bg: #f4f7f5;
+    --bg: #eef2ef;
     --surface: #ffffff;
-    --surface2: #f0f4f1;
-    --border: #e2ebe5;
+    --surface2: #eef3ef;
+    --border: #d6e2da;
     --text: #1a2e22;
     --text-secondary: #4a5f52;
     --muted: #7a9486;
@@ -246,6 +246,177 @@
     align-items: center;
     gap: 8px;
     animation: slideUp 0.2s ease;
+  }
+
+  /* Floating Widgets */
+  .floating-icon {
+    transition: transform 0.2s;
+  }
+
+  .floating-icon:active {
+    transform: scale(0.95);
+  }
+
+  .floating-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--red);
+    color: white;
+    font-size: 10px;
+    font-weight: bold;
+    border-radius: 20px;
+    padding: 2px 6px;
+    min-width: 20px;
+    text-align: center;
+    border: 2px solid var(--surface);
+  }
+
+  .widget-panel {
+    background: var(--surface);
+    border: 1px solid #d0dcd4;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  }
+
+  .widget-header {
+    user-select: none;
+  }
+
+  .widget-content {
+    background: var(--surface);
+  }
+
+  .task-item {
+    background: #f6faf7; /* slightly lifted */
+  }
+
+  .note-item {
+    background: #fff8cc; /* stronger yellow */
+  }
+
+  /* Task Widget specific styles */
+  .task-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+
+  .task-text {
+    color: var(--text);
+  }
+
+  .task-text.completed {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+
+  /* Notes Widget specific styles */
+  .note-item {
+    background: var(--yellow-light);
+    border-left: 4px solid var(--yellow);
+    border-radius: 10px;
+  }
+
+  [data-theme="dark"] .note-item {
+    background: rgba(241, 196, 15, 0.15);
+    border-left-color: var(--yellow);
+  }
+
+  .note-text {
+    color: var(--text);
+  }
+
+  .note-date {
+    color: var(--muted);
+  }
+
+  /* Widget content text colors */
+  .widget-content {
+    background: var(--surface);
+  }
+
+  .widget-footer {
+    background: var(--surface2);
+    color: var(--muted);
+  }
+
+  /* Input fields in widgets */
+  .widget-content input,
+  .widget-content textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .widget-content input::placeholder,
+  .widget-content textarea::placeholder {
+    color: var(--muted);
+  }
+
+  .widget-content input:focus,
+  .widget-content textarea:focus {
+    outline: none;
+    border-color: var(--green);
+    box-shadow: 0 0 0 3px var(--green-glow);
+  }
+
+  /* Add task button */
+  .add-task-form button {
+    background: var(--green);
+    color: white;
+  }
+
+  .add-task-form button:hover {
+    background: var(--green-dark);
+  }
+
+  /* Add note button */
+  .add-note-form button {
+    background: var(--yellow);
+    color: #1a2e22;
+  }
+
+  .add-note-form button:hover {
+    background: #e67e22;
+    color: white;
+  }
+
+  /* Checkbox styling */
+  .task-item input[type="checkbox"] {
+    accent-color: var(--green);
+  }
+
+  /* Delete buttons */
+  .task-delete,
+  .note-delete {
+    color: var(--red);
+  }
+
+  .task-delete:hover,
+  .note-delete:hover {
+    color: #c0392b;
+  }
+
+  .dragging {
+    opacity: 0.8;
+    cursor: grabbing !important;
+  }
+
+  .task-list::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .task-list::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 10px;
+  }
+  .notes-list::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .notes-list::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 10px;
   }
 
   @keyframes slideUp {

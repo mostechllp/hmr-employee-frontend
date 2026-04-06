@@ -3,6 +3,8 @@ import { Outlet, Navigate } from "react-router-dom";
 import { useAppSelector } from "../../store/hooks";
 import Sidebar from "../common/Sidebar";
 import Header from "../common/Header";
+import TaskWidget from "../widgets/TaskWidget";
+import NotesWidget from "../widgets/NotesWidget";
 
 const Layout = () => {
   const { isAuthenticated } = useAppSelector((state) => state.auth);
@@ -33,6 +35,8 @@ const Layout = () => {
           <Outlet />
         </div>
       </div>
+      <TaskWidget/>
+      <NotesWidget/>
     </div>
   );
 };
