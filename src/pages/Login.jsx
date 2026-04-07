@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { login } from "../store/slices/authSlice";
 import { setTheme } from "../store/slices/themeSlice";
 import {
   FiSun,
@@ -11,13 +10,14 @@ import {
   FiArrowRight,
   FiCheckCircle,
 } from "react-icons/fi";
+import { loginUser } from "../store/slices/authSlice";
 
 const Login = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { theme } = useAppSelector((state) => state.theme);
-  const [email, setEmail] = useState("jithin@thesay.ae");
-  const [password, setPassword] = useState("Thesay@ae");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
@@ -39,56 +39,42 @@ const Login = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
 
-    if (!email) {
-      showToast("Please enter your email address", false);
-      return;
-    }
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!password) {
-      showToast("Please enter your password", false);
-      return;
-    }
+  if (!email) {
+    showToast("Please enter your email address", false);
+    return;
+  }
 
-    const emailPattern = /^[^\s@]+@([^\s@]+\.)+[^\s@]+$/;
-    if (!emailPattern.test(email)) {
-      showToast("Please enter a valid email address", false);
-      return;
-    }
+  if (!password) {
+    showToast("Please enter your password", false);
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+  const result = await dispatch(loginUser({ email, password }));
 
-    const validEmails = [
-      "jithin@thesay.ae",
-      "jane@thesay.ae",
-      "employee@thesay.ae",
-      "test@thesay.ae",
-    ];
+  if (loginUser.fulfilled.match(result)) {
+    showToast("Login successful! Redirecting...", true);
 
-    if (validEmails.includes(email) && password === "Thesay@ae") {
-      if (rememberMe) {
-        localStorage.setItem("employee-remembered", "true");
-        localStorage.setItem("employee-email", email);
-      } else {
-        localStorage.removeItem("employee-remembered");
-        localStorage.removeItem("employee-email");
-      }
-
-      dispatch(login({ email }));
-      showToast("Login successful! Redirecting to dashboard...", true);
-
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1000);
+    if (rememberMe) {
+      localStorage.setItem("employee-remembered", "true");
+      localStorage.setItem("employee-email", email);
     } else {
-      showToast("Invalid email or password. Please try again.", false);
-      setLoading(false);
+      localStorage.removeItem("employee-remembered");
+      localStorage.removeItem("employee-email");
     }
-  };
+
+    setTimeout(() => navigate("/dashboard"), 1000);
+  } else {
+    showToast(result.payload || "Login failed", false);
+  }
+
+  setLoading(false);
+};
 
   return (
     <div className="login-container flex w-full min-h-screen overflow-hidden">

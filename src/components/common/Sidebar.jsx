@@ -8,10 +8,11 @@ const Sidebar = ({ isOpen, onClose }) => {
   const navItems = [
     { path: "/dashboard", icon: "fas fa-chart-line", label: "Dashboard" },
     { path: "/leaves", icon: "fas fa-calendar-check", label: "My Leaves" },
+    { path: "/wfh", icon: "fas fa-home", label: "WFH Requests" },
     {
-      path: "/request-leave",
-      icon: "fas fa-plus-circle",
-      label: "Request Leave",
+      path: "/task-reports",
+      icon: "fas fa-clipboard-list",
+      label: "Task Reports",
     },
     { path: "/profile", icon: "fas fa-user-circle", label: "My Profile" },
   ];
@@ -50,7 +51,7 @@ const Sidebar = ({ isOpen, onClose }) => {
         </Link>
 
         <div className="user-info">
-          <div className="user-avatar">{user.name.charAt(0)}</div>
+          <div className="user-avatar">{user?.name?.charAt(0)}</div>
           <div className="user-details">
             <h4>{user.name}</h4>
             <p>{user.role}</p>

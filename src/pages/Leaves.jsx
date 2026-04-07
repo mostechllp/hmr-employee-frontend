@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAppSelector, useAppDispatch } from '../store/hooks';
 import { setLeaveFilter, setLeavePagination } from '../store/slices/leavesSlice';
 import { FiSearch, FiPlus, FiFileText, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
-import StatusBadge from '../components/common/StatusBAdge';
+import StatusBadge from '../components/common/StatusBadge';
 
 const Leaves = () => {
   const dispatch = useAppDispatch();

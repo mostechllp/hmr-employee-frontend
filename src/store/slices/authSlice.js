@@ -1,40 +1,74 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import apiClient from "../../utils/apiClient";
+
+export const loginUser = createAsyncThunk(
+  "auth/loginUser",
+  async ({ email, password }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post("/auth/login", {
+        username: email,
+        password,
+      });
+
+      const data = response.data.data;
+
+      localStorage.setItem("employee-token", data.access_token);
+      localStorage.setItem("employee-user", JSON.stringify(data.user));
+
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || "Login failed");
+    }
+  },
+);
 
 const initialState = {
-  isAuthenticated: localStorage.getItem('employee-logged-in') === 'true',
-  user: {
-    email: localStorage.getItem('employee-email') || 'jithin@thesay.ae',
-    name: 'JITHIN',
-    role: 'IT Dept Head',
-    employeeId: '1',
-    department: 'IT',
-    joinedDate: '01 Jan 2022',
-    gender: 'Male',
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-  },
+  isAuthenticated: !!localStorage.getItem("employee-token"),
+  user: JSON.parse(localStorage.getItem("employee-user")) || null,
+  token: localStorage.getItem("employee-token") || null,
+  loading: false,
+  error: null,
 };
 
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
-    login: (state, action) => {
-      state.isAuthenticated = true;
-      state.user = { ...state.user, ...action.payload };
-      localStorage.setItem('employee-logged-in', 'true');
-      localStorage.setItem('employee-email', action.payload.email);
-    },
     logout: (state) => {
       state.isAuthenticated = false;
-      localStorage.removeItem('employee-logged-in');
-      localStorage.removeItem('employee-email');
-      localStorage.removeItem('employee-remembered');
+      state.user = null;
+      state.token = null;
+
+      localStorage.removeItem("employee-token");
+      localStorage.removeItem("employee-user");
     },
     updateProfile: (state, action) => {
       state.user = { ...state.user, ...action.payload };
     },
   },
+  extraReducers: (builder) => {
+    builder
+      .addCase(loginUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(loginUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isAuthenticated = true;
+        state.user = {
+          name: action.payload.user.employee?.name,
+          email: action.payload.user.email,
+          role: action.payload.user.roles?.[0],
+          avatar: action.payload.user.avatar,
+        };
+        state.token = action.payload.access_token;
+      })
+      .addCase(loginUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
+  },
 });
 
-export const { login, logout, updateProfile } = authSlice.actions;
+export const { logout, updateProfile } = authSlice.actions;
 export default authSlice.reducer;
