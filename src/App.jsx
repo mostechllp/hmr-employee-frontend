@@ -19,6 +19,7 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/leaves" element={<Leaves />} />
+          <Route path="/request-leave" element={<RequestLeave />} />
           <Route path="/wfh" element={<WFH />} />
           <Route path="/task-reports" element={<TaskReports />} />
           <Route path="/profile" element={<Profile />} />

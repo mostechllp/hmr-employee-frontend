@@ -1,42 +1,91 @@
-import { createSlice } from '@reduxjs/toolkit';
+// store/slices/wfhSlice.js
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import apiClient from "../../utils/apiClient";
 
-const loadWFHFromStorage = () => {
-  const saved = localStorage.getItem('employeeWFHRequests');
-  if (saved) return JSON.parse(saved);
-  return [
-    {
-      id: 1,
-      date: "31 Mar 2026",
-      reason: "Need to focus on development work without interruptions",
-      notes: "Will be available on Slack and email",
-      status: "Approved"
-    },
-    {
-      id: 2,
-      date: "28 Mar 2026",
-      reason: "Internet connectivity issues at office",
-      notes: "Working from home until issue resolved",
-      status: "Approved"
-    },
-    {
-      id: 3,
-      date: "25 Mar 2026",
-      reason: "Personal work at home",
-      notes: "Will join all meetings virtually",
-      status: "Pending"
-    },
-    {
-      id: 4,
-      date: "20 Mar 2026",
-      reason: "Sick - not feeling well to travel",
-      notes: "Resting but available for urgent tasks",
-      status: "Rejected"
+// Fetch WFH requests
+export const fetchWFHRequests = createAsyncThunk(
+  "wfh/fetchAll",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get("/employee/wfh-requests");
+      console.log("WFH requests response:", response.data);
+      
+      if (response.data?.status === "success") {
+        return response.data.data || [];
+      }
+      return rejectWithValue(response.data?.message || "Failed to fetch WFH requests");
+    } catch (error) {
+      console.error("Fetch WFH error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch WFH requests"
+      );
     }
-  ];
-};
+  }
+);
+
+// Store WFH request
+export const addWFHRequest = createAsyncThunk(
+  "wfh/add",
+  async (formData, { rejectWithValue }) => {
+    try {
+      const payload = {
+        date: formData.date,
+        reason: formData.reason,
+      };
+      
+      // Only add notes if it has a value
+      if (formData.notes && formData.notes.trim()) {
+        payload.notes = formData.notes.trim();
+      }
+      
+      console.log("Sending payload:", payload);
+      const response = await apiClient.post("/employee/wfh-requests", payload);
+      console.log("Add WFH response:", response.data);
+      
+      if (response.data?.status === "success") {
+        return response.data.data;
+      }
+      return rejectWithValue(response.data?.message || "Failed to submit WFH request");
+    } catch (error) {
+      console.error("Add WFH error:", error);
+      console.error("Error response:", error.response?.data);
+      
+      // Extract validation errors
+      if (error.response?.data?.errors) {
+        const errorMessages = Object.values(error.response.data.errors).flat();
+        return rejectWithValue(errorMessages.join(", "));
+      }
+      
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to submit WFH request"
+      );
+    }
+  }
+);
+
+// Update WFH status (for admin)
+export const updateWFHStatus = createAsyncThunk(
+  "wfh/updateStatus",
+  async ({ id, status }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.put(`/admin/wfh-requests/${id}/status`, { status });
+      console.log("Update WFH status response:", response.data);
+      
+      if (response.data?.status === "success") {
+        return { id, status };
+      }
+      return rejectWithValue(response.data?.message || "Failed to update status");
+    } catch (error) {
+      console.error("Update WFH status error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to update status"
+      );
+    }
+  }
+);
 
 const initialState = {
-  wfhRequests: loadWFHFromStorage(),
+  wfhRequests: [],
   filter: {
     status: 'all',
     search: '',
@@ -45,24 +94,15 @@ const initialState = {
     currentPage: 1,
     perPage: 10,
   },
+  loading: false,
+  error: null,
+  submitting: false,
 };
 
 const wfhSlice = createSlice({
   name: 'wfh',
   initialState,
   reducers: {
-    addWFHRequest: (state, action) => {
-      state.wfhRequests.unshift(action.payload);
-      localStorage.setItem('employeeWFHRequests', JSON.stringify(state.wfhRequests));
-    },
-    updateWFHStatus: (state, action) => {
-      const { id, status } = action.payload;
-      const request = state.wfhRequests.find(r => r.id === id);
-      if (request) {
-        request.status = status;
-        localStorage.setItem('employeeWFHRequests', JSON.stringify(state.wfhRequests));
-      }
-    },
     setWFHFilter: (state, action) => {
       state.filter.status = action.payload.status;
       state.filter.search = action.payload.search || '';
@@ -72,8 +112,50 @@ const wfhSlice = createSlice({
       state.pagination.currentPage = action.payload.currentPage;
       state.pagination.perPage = action.payload.perPage;
     },
+    clearWFHError: (state) => {
+      state.error = null;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch WFH Requests
+      .addCase(fetchWFHRequests.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchWFHRequests.fulfilled, (state, action) => {
+        state.loading = false;
+        state.wfhRequests = action.payload;
+      })
+      .addCase(fetchWFHRequests.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Add WFH Request
+      .addCase(addWFHRequest.pending, (state) => {
+        state.submitting = true;
+        state.error = null;
+      })
+      .addCase(addWFHRequest.fulfilled, (state, action) => {
+        state.submitting = false;
+        state.wfhRequests.unshift(action.payload);
+      })
+      .addCase(addWFHRequest.rejected, (state, action) => {
+        state.submitting = false;
+        state.error = action.payload;
+      })
+      
+      // Update WFH Status
+      .addCase(updateWFHStatus.fulfilled, (state, action) => {
+        const { id, status } = action.payload;
+        const index = state.wfhRequests.findIndex(r => r.id === id);
+        if (index !== -1) {
+          state.wfhRequests[index].status = status;
+        }
+      });
   },
 });
 
-export const { addWFHRequest, updateWFHStatus, setWFHFilter, setWFHPagination } = wfhSlice.actions;
+export const { setWFHFilter, setWFHPagination, clearWFHError } = wfhSlice.actions;
 export default wfhSlice.reducer;

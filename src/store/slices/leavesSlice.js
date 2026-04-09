@@ -1,62 +1,135 @@
-import { createSlice } from '@reduxjs/toolkit';
+import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
+import apiClient from '../../utils/apiClient';
 
-const loadLeavesFromStorage = () => {
-  const saved = localStorage.getItem('employeeLeaveRequests');
-  if (saved) return JSON.parse(saved);
-  return [
-    {
-      id: 1,
-      type: "Annual Leave",
-      fromDate: "01 Apr 2026",
-      toDate: "30 Apr 2026",
-      days: 30,
-      claimSalary: "Yes",
-      document: "-",
-      status: "Approved",
-      remark: "approved"
-    },
-    {
-      id: 2,
-      type: "Sick Leave",
-      fromDate: "10 Apr 2026",
-      toDate: "12 Apr 2026",
-      days: 3,
-      claimSalary: "Yes",
-      document: "medical.pdf",
-      status: "Approved",
-      remark: "Fever"
-    },
-    {
-      id: 3,
-      type: "Emergency Leave",
-      fromDate: "15 Apr 2026",
-      toDate: "16 Apr 2026",
-      days: 2,
-      claimSalary: "No",
-      document: "-",
-      status: "Rejected",
-      remark: "Insufficient documents"
-    },
-    {
-      id: 4,
-      type: "Annual Leave",
-      fromDate: "20 May 2026",
-      toDate: "25 May 2026",
-      days: 6,
-      claimSalary: "Yes",
-      document: "-",
-      status: "Pending",
-      remark: "Vacation"
+// Fetch Employee Leaves
+export const fetchEmployeeLeaves = createAsyncThunk(
+  "leaves/fetchEmployeeLeaves",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get("/employee/leaves");
+      console.log("Fetched leaves:", response.data);
+      
+      if (response.data && response.data.status === "success") {
+        return response.data.data;
+      } else {
+        return rejectWithValue(response.data?.message || "Failed to fetch leaves");
+      }
+    } catch (error) {
+      console.error("Fetch leaves error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch leaves"
+      );
     }
-  ];
-};
+  }
+);
+
+// Fetch Leave Balance from dedicated API
+export const fetchLeaveBalance = createAsyncThunk(
+  "leaves/fetchLeaveBalance",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get("/employee/leave-balance");
+      console.log("Leave balance response:", response.data);
+      
+      if (response.data && response.data.status === "success") {
+        const balanceData = response.data.data;
+        
+        // Transform the data into a more usable format
+        const leaveBalances = {};
+        
+        // Process leave types if available
+        if (balanceData.leave_types && Array.isArray(balanceData.leave_types)) {
+          balanceData.leave_types.forEach(leaveType => {
+            leaveBalances[leaveType.name] = {
+              allocated: balanceData.total_allocated || 0,
+              taken: balanceData.leaves_taken || 0,
+              pending: 0,
+              remaining: balanceData.remaining_balance || 0,
+              id: leaveType.id,
+              status: leaveType.status
+            };
+          });
+        }
+        
+        // Add total balance
+        leaveBalances.total = {
+          allocated: balanceData.total_allocated || 0,
+          taken: balanceData.leaves_taken || 0,
+          pending: 0,
+          remaining: balanceData.remaining_balance || 0
+        };
+        
+        return leaveBalances;
+      } else {
+        return rejectWithValue(response.data?.message || "Failed to fetch leave balance");
+      }
+    } catch (error) {
+      console.error("Fetch leave balance error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch leave balance"
+      );
+    }
+  }
+);
+
+// Store New Leave Request
+export const addLeaveRequest = createAsyncThunk(
+  "leaves/storeLeaveRequest",
+  async (formData, { rejectWithValue, dispatch }) => {
+    try {
+      // Format the data for API based on actual response structure
+      const payload = new FormData();
+      payload.append('leave_type', formData.leaveType);
+      payload.append('from_date', formData.fromDate);
+      payload.append('to_date', formData.toDate);
+      payload.append('reason', formData.reason);
+      payload.append('claim_salary', formData.claimSalary === "Yes" ? 1 : 0);
+      
+      if (formData.document) {
+        payload.append('document', formData.document);
+      }
+      
+      const response = await apiClient.post("/employee/leaves", payload, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      console.log("Store leave response:", response.data);
+      
+      if (response.data && response.data.status === "success") {
+        // Refresh balance after successful submission
+        await dispatch(fetchLeaveBalance());
+        return response.data.data;
+      } else {
+        return rejectWithValue(response.data?.message || "Failed to submit leave request");
+      }
+    } catch (error) {
+      console.error("Store leave error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to submit leave request"
+      );
+    }
+  }
+);
+
+// Calculate leave balances (now uses the API data)
+export const calculateLeaveBalances = createAsyncThunk(
+  "leaves/calculateLeaveBalances",
+  async (_, { getState }) => {
+    const state = getState();
+    return state.leaves.leaveBalances;
+  }
+);
 
 const initialState = {
-  leaves: loadLeavesFromStorage(),
+  leaves: [],
   leaveBalances: {
-    'Annual Leave': { allocated: 30, taken: 18, pending: 2 },
-    'Sick Leave': { allocated: 15, taken: 5, pending: 0 },
-    'Emergency Leave': { allocated: 5, taken: 0, pending: 0 },
+    total: {
+      allocated: 0,
+      taken: 0,
+      pending: 0,
+      remaining: 0
+    }
   },
   filter: {
     status: 'all',
@@ -66,44 +139,15 @@ const initialState = {
     currentPage: 1,
     perPage: 10,
   },
+  loading: false,
+  error: null,
+  submitting: false,
 };
 
 const leavesSlice = createSlice({
   name: 'leaves',
   initialState,
   reducers: {
-    addLeaveRequest: (state, action) => {
-      state.leaves.unshift(action.payload);
-      localStorage.setItem('employeeLeaveRequests', JSON.stringify(state.leaves));
-      
-      // Update balance
-      const leave = action.payload;
-      const balance = state.leaveBalances[leave.type];
-      if (balance && leave.status === 'Pending') {
-        balance.pending += leave.days;
-      }
-    },
-    updateLeaveStatus: (state, action) => {
-      const { id, status } = action.payload;
-      const leave = state.leaves.find(l => l.id === id);
-      if (leave) {
-        const oldStatus = leave.status;
-        leave.status = status;
-        
-        // Update balance
-        const balance = state.leaveBalances[leave.type];
-        if (balance) {
-          if (oldStatus === 'Pending' && status === 'Approved') {
-            balance.pending -= leave.days;
-            balance.taken += leave.days;
-          } else if (oldStatus === 'Pending' && status === 'Rejected') {
-            balance.pending -= leave.days;
-          }
-        }
-        
-        localStorage.setItem('employeeLeaveRequests', JSON.stringify(state.leaves));
-      }
-    },
     setLeaveFilter: (state, action) => {
       state.filter.status = action.payload.status;
       state.filter.search = action.payload.search || '';
@@ -113,8 +157,74 @@ const leavesSlice = createSlice({
       state.pagination.currentPage = action.payload.currentPage;
       state.pagination.perPage = action.payload.perPage;
     },
+    clearLeaveError: (state) => {
+      state.error = null;
+    },
+    updateLeaveBalance: (state, action) => {
+      state.leaveBalances = action.payload;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch Employee Leaves
+      .addCase(fetchEmployeeLeaves.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchEmployeeLeaves.fulfilled, (state, action) => {
+        state.loading = false;
+        state.leaves = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchEmployeeLeaves.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Fetch Leave Balance
+      .addCase(fetchLeaveBalance.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchLeaveBalance.fulfilled, (state, action) => {
+        state.loading = false;
+        state.leaveBalances = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchLeaveBalance.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Store Leave Request
+      .addCase(addLeaveRequest.pending, (state) => {
+        state.submitting = true;
+        state.error = null;
+      })
+      .addCase(addLeaveRequest.fulfilled, (state, action) => {
+        state.submitting = false;
+        state.leaves.unshift(action.payload);
+        state.error = null;
+      })
+      .addCase(addLeaveRequest.rejected, (state, action) => {
+        state.submitting = false;
+        state.error = action.payload;
+      })
+      
+      // Calculate Leave Balances
+      .addCase(calculateLeaveBalances.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(calculateLeaveBalances.fulfilled, (state) => {
+        state.loading = false;
+        // Keep existing balances, don't overwrite
+      })
+      .addCase(calculateLeaveBalances.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
   },
 });
 
-export const { addLeaveRequest, updateLeaveStatus, setLeaveFilter, setLeavePagination } = leavesSlice.actions;
+export const { setLeaveFilter, setLeavePagination, clearLeaveError, updateLeaveBalance } = leavesSlice.actions;
 export default leavesSlice.reducer;

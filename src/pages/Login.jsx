@@ -23,6 +23,25 @@ const Login = () => {
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
+    // If already authenticated, redirect to dashboard
+    const token = localStorage.getItem("employee-token");
+    if (token) {
+      navigate("/dashboard");
+      return;
+    }
+
+    const remembered = localStorage.getItem("employee-remembered");
+    if (remembered === "true") {
+      const savedEmail = localStorage.getItem("employee-email");
+      if (savedEmail) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setEmail(savedEmail);
+        setRememberMe(true);
+      }
+    }
+  }, [navigate]);
+
+  useEffect(() => {
     const remembered = localStorage.getItem("employee-remembered");
     if (remembered === "true") {
       const savedEmail = localStorage.getItem("employee-email");
@@ -39,42 +58,46 @@ const Login = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  if (!email) {
-    showToast("Please enter your email address", false);
-    return;
-  }
-
-  if (!password) {
-    showToast("Please enter your password", false);
-    return;
-  }
-
-  setLoading(true);
-
-  const result = await dispatch(loginUser({ email, password }));
-
-  if (loginUser.fulfilled.match(result)) {
-    showToast("Login successful! Redirecting...", true);
-
-    if (rememberMe) {
-      localStorage.setItem("employee-remembered", "true");
-      localStorage.setItem("employee-email", email);
-    } else {
-      localStorage.removeItem("employee-remembered");
-      localStorage.removeItem("employee-email");
+    if (!email) {
+      showToast("Please enter your email address", false);
+      return;
     }
 
-    setTimeout(() => navigate("/dashboard"), 1000);
-  } else {
-    showToast(result.payload || "Login failed", false);
-  }
+    if (!password) {
+      showToast("Please enter your password", false);
+      return;
+    }
 
-  setLoading(false);
-};
+    setLoading(true);
+
+    try {
+      const result = await dispatch(loginUser({ email, password }));
+
+      if (loginUser.fulfilled.match(result)) {
+        showToast("Login successful! Redirecting...", true);
+
+        if (rememberMe) {
+          localStorage.setItem("employee-remembered", "true");
+          localStorage.setItem("employee-email", email);
+        } else {
+          localStorage.removeItem("employee-remembered");
+          localStorage.removeItem("employee-email");
+        }
+
+        setTimeout(() => navigate("/dashboard"), 1000);
+      } else {
+        showToast(result.payload || "Login failed", false);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      showToast("An unexpected error occurred", false);
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="login-container flex w-full min-h-screen overflow-hidden">
